@@ -1,0 +1,46 @@
+# Current date: {{ .CurrentDate.Format "Mon Jan _2 15:04:05 2006" }}
+# Hostname: {{ .Hostname }}
+# Files: {{ .Filename }}
+{{ with .Global -}}
+# Overall: {{ shortInt .TotalQueries }} total, {{ shortInt .UniqueQueries }} unique
+# Attribute          total     min     max     avg     95%  median
+# =============     ======= ======= ======= ======= ======= =======
+{{ with .Metrics.TimeMetrics -}}
+# Exec time         {{ shortTime .Query_time.Sum | printf "%7s" }} {{ shortTime .Query_time.Min | printf "%7s" }} {{ shortTime .Query_time.Max | printf "%7s" }} {{ shortTime .Query_time.Avg | printf "%7s" }} {{ shortTime .Query_time.P95 | printf "%7s" }} {{ shortTime .Query_time.Med | printf "%7s" }}
+# Lock time         {{ shortTime .Lock_time.Sum | printf "%7s" }} {{ shortTime .Lock_time.Min | printf "%7s" }} {{ shortTime .Lock_time.Max | printf "%7s" }} {{ shortTime .Lock_time.Avg | printf "%7s" }} {{ shortTime .Lock_time.P95 | printf "%7s" }} {{ shortTime .Lock_time.Med | printf "%7s" }}
+{{ end -}}
+{{ with .Metrics.NumberMetrics -}}
+# Rows sent         {{ shortInt .Rows_sent.Sum | printf "%7s" }} {{ shortInt .Rows_sent.Min | printf "%7s" }} {{ shortInt .Rows_sent.Max | printf "%7s" }} {{ short .Rows_sent.Avg | printf "%7s" }} {{ shortInt .Rows_sent.P95 | printf "%7s" }} {{ shortInt .Rows_sent.Med | printf "%7s" }}
+# Rows examined     {{ shortInt .Rows_examined.Sum | printf "%7s" }} {{ shortInt .Rows_examined.Min | printf "%7s" }} {{ shortInt .Rows_examined.Max | printf "%7s" }} {{ short .Rows_examined.Avg | printf "%7s" }} {{ shortInt .Rows_examined.P95 | printf "%7s" }} {{ shortInt .Rows_examined.Med | printf "%7s" }}
+# Rows affected     {{ shortInt .Rows_affected.Sum | printf "%7s" }} {{ shortInt .Rows_affected.Min | printf "%7s" }} {{ shortInt .Rows_affected.Max | printf "%7s" }} {{ short .Rows_affected.Avg | printf "%7s" }} {{ shortInt .Rows_affected.P95 | printf "%7s" }} {{ shortInt .Rows_affected.Med | printf "%7s" }}
+# Bytes sent        {{ shortByteInt .Bytes_sent.Sum | printf "%7s" }} {{ shortByteInt .Bytes_sent.Min | printf "%7s" }} {{ shortByteInt .Bytes_sent.Max | printf "%7s" }} {{ shortByte .Bytes_sent.Avg | printf "%7s" }} {{ shortByteInt .Bytes_sent.P95 | printf "%7s" }} {{ shortByteInt .Bytes_sent.Med | printf "%7s" }}
+{{ end -}}
+{{ end -}}
+{{ $g := .Global }}
+# Profile
+# Rank Query ID           Response time Calls  R/Call
+# ==== ================== ============= ====== ======
+{{ range $i, $v := .Profiles }}{{ with $v -}}
+# {{ rank $i | printf "%4d" }} 0x{{ .Id }} {{ printf "%7.4f" .Metrics.TimeMetrics.Query_time.Sum }} {{ percent .Metrics.TimeMetrics.Query_time.Sum $g.Metrics.TimeMetrics.Query_time.Sum | printf "%4.1f%%" }} {{ printf "%6d" .TotalQueries }} {{ per .Metrics.TimeMetrics.Query_time.Sum .TotalQueries | printf "%6.4f" }} {{ summary .Example.Query }}
+{{ end }}{{ end -}}
+{{ range $i, $v := .Profiles }}{{ with $v }}
+# Query {{ rank $i }}: ID 0x{{ .Id }}
+# Attribute     pct   total     min     max     avg     95%  median
+# ============= === ======= ======= ======= ======= ======= =======
+# Count         {{ percent .TotalQueries $g.TotalQueries | printf "%3.0f" }} {{ printf "%7d" .TotalQueries }}
+{{ with .Metrics.TimeMetrics -}}
+# Exec time     {{ percent .Query_time.Sum $g.Metrics.TimeMetrics.Query_time.Sum | printf "%3.0f" }} {{ shortTime .Query_time.Sum | printf "%7s" }} {{ shortTime .Query_time.Min | printf "%7s" }} {{ shortTime .Query_time.Max | printf "%7s" }} {{ shortTime .Query_time.Avg | printf "%7s" }} {{ shortTime .Query_time.P95 | printf "%7s" }} {{ shortTime .Query_time.Med | printf "%7s" }}
+# Lock time     {{ percent .Lock_time.Sum $g.Metrics.TimeMetrics.Lock_time.Sum | printf "%3.0f" }} {{ shortTime .Lock_time.Sum | printf "%7s" }} {{ shortTime .Lock_time.Min | printf "%7s" }} {{ shortTime .Lock_time.Max | printf "%7s" }} {{ shortTime .Lock_time.Avg | printf "%7s" }} {{ shortTime .Lock_time.P95 | printf "%7s" }} {{ shortTime .Lock_time.Med | printf "%7s" }}
+{{ end -}}
+{{ with .Metrics.NumberMetrics -}}
+# Rows sent     {{ percent .Rows_sent.Sum $g.Metrics.NumberMetrics.Rows_sent.Sum | printf "%3.0f" }} {{ shortInt .Rows_sent.Sum | printf "%7s" }} {{ shortInt .Rows_sent.Min | printf "%7s" }} {{ shortInt .Rows_sent.Max | printf "%7s" }} {{ short .Rows_sent.Avg | printf "%7s" }} {{ shortInt .Rows_sent.P95 | printf "%7s" }} {{ shortInt .Rows_sent.Med | printf "%7s" }}
+# Rows examined {{ percent .Rows_examined.Sum $g.Metrics.NumberMetrics.Rows_examined.Sum | printf "%3.0f" }} {{ shortInt .Rows_examined.Sum | printf "%7s" }} {{ shortInt .Rows_examined.Min | printf "%7s" }} {{ shortInt .Rows_examined.Max | printf "%7s" }} {{ short .Rows_examined.Avg | printf "%7s" }} {{ shortInt .Rows_examined.P95 | printf "%7s" }} {{ shortInt .Rows_examined.Med | printf "%7s" }}
+# Rows affected {{ percent .Rows_affected.Sum $g.Metrics.NumberMetrics.Rows_affected.Sum | printf "%3.0f" }} {{ shortInt .Rows_affected.Sum | printf "%7s" }} {{ shortInt .Rows_affected.Min | printf "%7s" }} {{ shortInt .Rows_affected.Max | printf "%7s" }} {{ short .Rows_affected.Avg | printf "%7s" }} {{ shortInt .Rows_affected.P95 | printf "%7s" }} {{ shortInt .Rows_affected.Med | printf "%7s" }}
+# Bytes sent    {{ percent .Bytes_sent.Sum $g.Metrics.NumberMetrics.Bytes_sent.Sum | printf "%3.0f" }} {{ shortByteInt .Bytes_sent.Sum | printf "%7s" }} {{ shortByteInt .Bytes_sent.Min | printf "%7s" }} {{ shortByteInt .Bytes_sent.Max | printf "%7s" }} {{ shortByte .Bytes_sent.Avg | printf "%7s" }} {{ shortByteInt .Bytes_sent.P95 | printf "%7s" }} {{ shortByteInt .Bytes_sent.Med | printf "%7s" }}
+{{ end -}}
+# String:
+# Databases     {{ .Example.Db }}
+# 
+# EXPLAIN /*!50100 PARTITIONS*/
+{{ .Example.Query }}\G
+{{ end }}{{ end -}}

@@ -21,16 +21,12 @@ import (
 	_ "github.com/pingcap/parser/test_driver"
 )
 
-type RankedClass struct {
-	Rank  int
-	Class *event.Class
-}
 type Result struct {
 	CurrentDate *time.Time
 	Hostname    string
 	Filename    string
 	Global      *event.Class
-	Profiles    []*RankedClass
+	Profiles    []*event.Class
 }
 
 //go:embed templates
@@ -120,17 +116,14 @@ func aggregateSlowLog(w io.Writer, r io.ReadSeeker, examples bool, utcOffset tim
 	if file, ok := r.(*os.File); ok {
 		filename = file.Name()
 	}
-	profiles := make([]*RankedClass, 0, len(finalizedResult.Class))
+	profiles := make([]*event.Class, 0, len(finalizedResult.Class))
 
 	for _, v := range finalizedResult.Class {
-		profile := RankedClass{
-			Class: v,
-		}
-		profiles = append(profiles, &profile)
+		profiles = append(profiles, v)
 	}
 
 	sort.Slice(profiles, func(i, j int) bool {
-		return profiles[i].Class.Metrics.TimeMetrics["Query_time"].Sum > profiles[j].Class.Metrics.TimeMetrics["Query_time"].Sum
+		return profiles[i].Metrics.TimeMetrics["Query_time"].Sum > profiles[j].Metrics.TimeMetrics["Query_time"].Sum
 	})
 
 	result := Result{
@@ -158,16 +151,36 @@ func aggregateSlowLog(w io.Writer, r io.ReadSeeker, examples bool, utcOffset tim
 		"shortTime": func(v any) string {
 			var format string
 			f := anyToFloat64(v)
-			if f < 0.000001 {
-				format = "%7.0f"
+			if f < 0.000000001 {
+				format = "%.0f"
+			} else if f < 0.000001 {
+				f = f * 1000000000
+				format = "%.1fns"
 			} else if f < 0.001 {
 				f = f * 1000000
-				format = "%5.0fus"
+				format = "%.1fus"
 			} else if f < 1 {
 				f = f * 1000
-				format = "%5.0fms"
+				format = "%.1fms"
 			} else {
-				format = "%6.0fs"
+				format = "%.2fs"
+			}
+			return fmt.Sprintf(format, f)
+		},
+		"shortByteInt": func(v any) string {
+			var format string
+			f := anyToFloat64(v)
+			if f >= 1024*1024*1024 {
+				f = f / (1024 * 1024 * 1024)
+				format = "%.0fG"
+			} else if f >= 1024*1024 {
+				f = f / (1024 * 1024)
+				format = "%.0fM"
+			} else if f >= 1024 {
+				f = f / 1024
+				format = "%.0fk"
+			} else {
+				format = "%.0f"
 			}
 			return fmt.Sprintf(format, f)
 		},
@@ -176,17 +189,34 @@ func aggregateSlowLog(w io.Writer, r io.ReadSeeker, examples bool, utcOffset tim
 			f := anyToFloat64(v)
 			if f >= 1024*1024*1024 {
 				f = f / (1024 * 1024 * 1024)
-				format = "%6.2fG"
+				format = "%.2fG"
 			} else if f >= 1024*1024 {
 				f = f / (1024 * 1024)
-				format = "%6.2fM"
+				format = "%.2fM"
 			} else if f >= 1024 {
 				f = f / 1024
-				format = "%6.2fk"
+				format = "%.2fk"
 			} else if f == 0 {
-				format = "%7.0f"
+				format = "%.0f"
 			} else {
-				format = "%7.2f"
+				format = "%.2f"
+			}
+			return fmt.Sprintf(format, f)
+		},
+		"shortInt": func(v any) string {
+			var format string
+			f := anyToFloat64(v)
+			if f >= 1_000_000_000 {
+				f = f / 1_000_000_000
+				format = "%.2fG"
+			} else if f >= 1_000_000 {
+				f = f / 1_000_000
+				format = "%.2fM"
+			} else if f >= 1_000 {
+				f = f / 1_000
+				format = "%.2fk"
+			} else {
+				format = "%.0f"
 			}
 			return fmt.Sprintf(format, f)
 		},
@@ -195,17 +225,17 @@ func aggregateSlowLog(w io.Writer, r io.ReadSeeker, examples bool, utcOffset tim
 			f := anyToFloat64(v)
 			if f >= 1_000_000_000 {
 				f = f / 1_000_000_000
-				format = "%6.2fG"
+				format = "%.2fG"
 			} else if f >= 1_000_000 {
 				f = f / 1_000_000
-				format = "%6.2fM"
+				format = "%.2fM"
 			} else if f >= 1_000 {
 				f = f / 1_000
-				format = "%6.2fk"
+				format = "%.2fk"
 			} else if f == 0 {
-				format = "%7.0f"
+				format = "%.0f"
 			} else {
-				format = "%7.2f"
+				format = "%.2f"
 			}
 			return fmt.Sprintf(format, f)
 		},
@@ -223,11 +253,11 @@ func aggregateSlowLog(w io.Writer, r io.ReadSeeker, examples bool, utcOffset tim
 		},
 	}
 
-	tmpl, err := template.New("").Funcs(funcMap).ParseFS(fs, "templates/result.tmpl")
+	tmpl, err := template.New("").Funcs(funcMap).ParseFS(fs, "templates/report.tmpl")
 	if err != nil {
 		return err
 	}
-	return tmpl.ExecuteTemplate(w, "result.tmpl", result)
+	return tmpl.ExecuteTemplate(w, "report.tmpl", result)
 }
 
 func main() {
