@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"regexp"
 	"sort"
@@ -28,6 +29,97 @@ type Result struct {
 	Filename    string
 	Global      *event.Class
 	Profiles    []*event.Class
+	Width       Width
+}
+
+func (r Result) widthRank() int {
+	w := getIntWidth(float64(r.Global.UniqueQueries))
+	if w < 4 {
+		w = 4
+	}
+	return w
+}
+
+func (r Result) DrawRankHeader() string {
+	w := r.widthRank()
+	s := "Rank"
+	return s + strings.Repeat(" ", w-len(s))
+}
+
+func (r Result) DrawRankHR() string {
+	w := r.widthRank()
+	return strings.Repeat("=", w)
+}
+
+func (r Result) FormatRank(v int) string {
+	w := r.widthRank()
+	f := fmt.Sprintf("%%%dd", w)
+	return fmt.Sprintf(f, v+1)
+}
+
+func (r Result) widthResponseTime() int {
+	w := getIntWidth(*r.Global.Metrics.TimeMetrics["Query_time"].Max)
+	if w < 2 {
+		w = 2
+	}
+	// Int.xxxx
+	w += 5
+	return w
+}
+
+func (r Result) DrawResponseTimeHeader() string {
+	w := r.widthResponseTime() + 7
+	s := "Response time"
+	return s + strings.Repeat(" ", w-len(s))
+}
+
+func (r Result) DrawResponseTimeHR() string {
+	w := r.widthResponseTime() + 7
+	return strings.Repeat("=", w)
+}
+
+func (r Result) FormatResponseTime(v float64) string {
+	w := r.widthResponseTime()
+	f := fmt.Sprintf("%%%d.4f", w)
+	return fmt.Sprintf(f, v)
+}
+
+func (r Result) widthCalls() int {
+	w := getIntWidth(float64(r.Global.TotalQueries))
+	if w < 5 {
+		w = 5
+	}
+	return w
+}
+
+func (r Result) FormatCalls(v uint) string {
+	w := r.widthCalls()
+	f := fmt.Sprintf("%%%dd", w)
+	return fmt.Sprintf(f, v)
+}
+
+func (r Result) DrawCallsHeader() string {
+	w := r.widthCalls()
+	s := "Calls"
+	return s + strings.Repeat(" ", w-len(s))
+}
+func (r Result) DrawCallsHR() string {
+	w := r.widthCalls()
+	return strings.Repeat("=", w)
+}
+
+func (r Result) widthRPCall() int {
+	return r.Width.RPCall
+}
+
+func (r Result) DrawRPCallHR() string {
+	w := r.widthRPCall()
+	return strings.Repeat("=", w)
+}
+
+func (r Result) FormatRPCall() string {
+	w := r.widthRPCall()
+	return fmt.Sprintf("%%%ds", w)
 }
 
 //go:embed templates
@@ -46,6 +138,37 @@ type OptLimit struct {
 }
 
 var optLimit OptLimit
+
+type Width struct {
+	TotalQueries int
+	RPCall       int
+}
+
+func getIntWidth(v float64) int {
+	w := 1
+
+	abs := math.Abs(v)
+	if abs != v {
+		w++
+	}
+	if abs >= 1.0 {
+		w += int(math.Log10(math.Abs(v)))
+	}
+	return w
+}
+
+func (w *Width) Calc(c *event.Class) error {
+	t := getIntWidth(float64(c.TotalQueries))
+	if w.TotalQueries < t {
+		w.TotalQueries = t
+	}
+
+	r := getIntWidth(c.Metrics.TimeMetrics["Query_time"].Sum/float64(c.TotalQueries)) + 5
+	if w.RPCall < r {
+		w.RPCall = r
+	}
+	return nil
+}
 
 func (o *OptLimit) Set(v string) error {
 	if strings.HasSuffix(v, "%") {
@@ -178,7 +301,12 @@ func aggregateSlowLog(w io.Writer, rs []io.ReadSeeker, examples bool, utcOffset 
 	filename := strings.Join(filenames, " ")
 	profiles := make([]*event.Class, 0, len(finalizedResult.Class))
 
+	var width Width
 	for _, v := range finalizedResult.Class {
+		err := width.Calc(v)
+		if err != nil {
+			return err
+		}
 		profiles = append(profiles, v)
 	}
 
@@ -193,6 +321,7 @@ func aggregateSlowLog(w io.Writer, rs []io.ReadSeeker, examples bool, utcOffset 
 		Filename:    filename,
 		Global:      finalizedResult.Global,
 		Profiles:    profiles[:max],
+		Width:       width,
 	}
 
 	funcMap := template.FuncMap{
