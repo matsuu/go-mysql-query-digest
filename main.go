@@ -199,7 +199,8 @@ func (an *Analyzer) Finalize(w io.Writer) error {
 
 			stmtNode, err := p.ParseOneStmt(sql, "", "")
 			if err != nil {
-				return ""
+				stmt := rePrefixStmt.ReplaceAllString(sql, "")
+				return strings.ToUpper(stmt)
 			}
 
 			s := &SummaryQuery{}
@@ -317,7 +318,10 @@ func (r Result) FormatRPCall() string {
 //go:embed templates
 var fs embed.FS
 
-var reStmtName = regexp.MustCompile(`^\*ast\.(.*)Stmt$`)
+var (
+	reStmtName   = regexp.MustCompile(`^\*ast\.(.*)Stmt$`)
+	rePrefixStmt = regexp.MustCompile(`\s.*`)
+)
 
 type SummaryQuery struct {
 	Stmt   *string
