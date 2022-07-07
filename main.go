@@ -90,12 +90,12 @@ func (an *Analyzer) Finalize(w io.Writer) error {
 	}
 
 	funcMap := template.FuncMap{
-		"percent": func(a, b any) float64 {
+		"percent": func(a, b interface{}) float64 {
 			ta := anyToFloat64(a)
 			tb := anyToFloat64(b)
 			return ta / tb * 100
 		},
-		"per": func(a, b any) float64 {
+		"per": func(a, b interface{}) float64 {
 			ta := anyToFloat64(a)
 			tb := anyToFloat64(b)
 			return ta / tb
@@ -103,7 +103,7 @@ func (an *Analyzer) Finalize(w io.Writer) error {
 		"rank": func(a int) int {
 			return a + 1
 		},
-		"shortTime": func(v any) string {
+		"shortTime": func(v interface{}) string {
 			var format string
 			f := anyToFloat64(v)
 			if f < 0.000000001 {
@@ -122,7 +122,7 @@ func (an *Analyzer) Finalize(w io.Writer) error {
 			}
 			return fmt.Sprintf(format, f)
 		},
-		"shortByteInt": func(v any) string {
+		"shortByteInt": func(v interface{}) string {
 			var format string
 			f := anyToFloat64(v)
 			if f >= 1024*1024*1024 {
@@ -139,7 +139,7 @@ func (an *Analyzer) Finalize(w io.Writer) error {
 			}
 			return fmt.Sprintf(format, f)
 		},
-		"shortByte": func(v any) string {
+		"shortByte": func(v interface{}) string {
 			var format string
 			f := anyToFloat64(v)
 			if f >= 1024*1024*1024 {
@@ -158,7 +158,7 @@ func (an *Analyzer) Finalize(w io.Writer) error {
 			}
 			return fmt.Sprintf(format, f)
 		},
-		"shortInt": func(v any) string {
+		"shortInt": func(v interface{}) string {
 			var format string
 			f := anyToFloat64(v)
 			if f >= 1_000_000_000 {
@@ -175,7 +175,7 @@ func (an *Analyzer) Finalize(w io.Writer) error {
 			}
 			return fmt.Sprintf(format, f)
 		},
-		"short": func(v any) string {
+		"short": func(v interface{}) string {
 			var format string
 			f := anyToFloat64(v)
 			if f >= 1_000_000_000 {
@@ -444,7 +444,7 @@ func (s *SummaryQuery) String() string {
 	return fmt.Sprintf("%s %s", stmt, strings.Join(s.Tables, " "))
 }
 
-func anyToFloat64(v any) float64 {
+func anyToFloat64(v interface{}) float64 {
 	var f float64
 	switch v.(type) {
 	case uint:
